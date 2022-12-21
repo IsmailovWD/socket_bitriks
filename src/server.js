@@ -133,6 +133,112 @@ io.on('connection', (socket) => {
         })
         io.emit('newOrder', datas)
     })
+    socket.on('orderUpdate', async(data) => {
+        let {
+            client_id,
+            phone_number,
+            status_id,
+            region_id,
+            activity_id,
+            program_id,
+            source_id,
+            company_id,
+            summa,
+            comment
+        } = data;
+
+        const model = await Order.findOne({
+            where: {
+                id: data.id
+            },
+        });
+        model.user_id = socket.userId;
+        model.client_id = client_id;
+        model.phone_number = phone_number;
+        model.status_id = status_id;
+        model.region_id = region_id;
+        model.activity_id = activity_id;
+        model.program_id = program_id;
+        model.source_id = source_id;
+        model.summa = summa;
+        model.comment = comment;
+        model.company_id = company_id;
+        await model.save();
+        const datas = await Order.findOne({
+            where: {
+                id: model.id
+            },
+            attributes: [
+                'id',
+                'datetime',
+                'user_id',
+                'client_id',
+                [sequelize.literal('user.username'), 'operator'],
+                [sequelize.literal('client.fullname'), 'client_name'],
+                'phone_number',
+                [sequelize.literal('status.name'),'status_name'],
+                [sequelize.literal('region.name'),'region_name'],
+                [sequelize.literal('activity.name'), 'activity_name'],
+                [sequelize.literal('program.name'), 'program_name'],
+                [sequelize.literal('source.name'),'source_name'],
+                [sequelize.literal('company.name'), 'company_name'],
+                'status_id',
+                'program_id',
+                'region_id',
+                'activity_id',
+                'source_id',
+                'company_id',
+                'summa',
+                'comment'
+            ],
+            include: [
+                {
+                    model: User,
+                    as: 'user',
+                    attributes: [],
+                },
+                {
+                    model: Client,
+                    as: 'client',
+                    attributes: [],
+                },
+                {
+                    model: Status,
+                    as: 'status',
+                    attributes: [],
+                },
+                {
+                    model: Region,
+                    as: 'region',
+                    attributes: [],
+                },
+                {
+                    model: Activity,
+                    as: 'activity',
+                    attributes: [],
+                },
+                {
+                    model: Program,
+                    as: 'program',
+                    attributes: [],
+                },
+                {
+                    model: Source,
+                    as: 'source',
+                    attributes: [],
+                },
+                {
+                    model: Company,
+                    as: 'company',
+                    attributes: [],
+                },
+            ],
+        })
+        await io.emit('newUpdate', datas)
+    })
+    socket.on('orderSplice', async(data) => {
+        await io.emit('newSplice', data)
+    })
     socket.on("disconnect", () => {
         console.log("Disconnected: " + socket.userId);
     });
