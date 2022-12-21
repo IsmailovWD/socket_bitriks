@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const { User, Status, Order, StatusRegister, Client, Region, Activity, Program, Source, Company } = require('./models/init-models');
+const { User, Status, Order, StatusRegister, Client, Region, Activity, Program, Source, Company, OrderComment } = require('./models/init-models');
 const MessageModel = require('./models/message.model');
 require('./startup/logging')();
 require('./startup/db')();
@@ -32,6 +32,7 @@ io.use(async (socket, next) => {
 });
 io.on('connection', (socket) => {
     console.log("Connected: " + socket.userId);
+    // Order
     socket.on('orderCreate', async(data) => {
         let time = Math.floor(new Date().getTime() / 1000);
         let {
@@ -239,6 +240,86 @@ io.on('connection', (socket) => {
     socket.on('orderSplice', async(data) => {
         await io.emit('newSplice', data)
     })
+    // OrderComment
+    socket.on('commentCreate', async(data) => {
+        let time = Math.floor(new Date().getTime() / 1000);
+        let {
+            order_id,
+            comment
+        } = data;
+
+        const model = await OrderComment.create({
+            datetime: time,
+            order_id,
+            user_id: socket.userId,
+            comment
+        })
+
+        const datas = await OrderComment.findOne({
+            where: {
+                id: model.id
+            },
+
+            attributes: [
+                'id',
+                'datetime',
+                'user_id',
+                'order_id',
+                [sequelize.literal('user.username'), 'operator'],
+                'comment'
+            ],
+            include: [
+                {
+                    model: User,
+                    as: 'user',
+                    attributes: [],
+                },
+            ]
+        })
+        io.emit('newComment', datas)
+    })
+    socket.on('commentUpdate', async(data) => {
+        let {
+            order_id,
+            comment
+        } = data;
+
+        const model = await OrderComment.findOne({
+            where: {
+                id: data.id,
+            }
+        })
+        model.datetime = datetime;
+        model.user_id = socket.userId;
+        model.order_id = order_id;
+        model.comment = comment;
+        await model.save();
+
+        const datas = await OrderComment.findOne({
+            where: {
+                id: model.id,
+            },
+
+            attributes: [
+                'id',
+                'datetime',
+                'user_id',
+                'order_id',
+                [sequelize.literal('user.username'), 'operator'],
+                'comment'
+            ],
+            include: [
+                {
+                    model: User,
+                    as: 'user',
+                    attributes: [],
+                },
+            ]
+        })
+        io.emit('newUpdateComment', datas)
+
+    })
+
     socket.on("disconnect", () => {
         console.log("Disconnected: " + socket.userId);
     });
